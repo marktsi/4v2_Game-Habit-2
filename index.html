@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4v2 Rondo — Game Habit #2: Raise Your Head and Look</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#0a0a0a;font-family:'Barlow',sans-serif;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:100vh;padding:16px;color:#fff;}
+
+  .header{text-align:center;margin-bottom:10px;}
+  .header h1{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:21px;
+    letter-spacing:2px;text-transform:uppercase;color:#C61D23;}
+  .header p{font-size:11px;color:#555;letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
+
+  .phase-label{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;
+    letter-spacing:2px;text-transform:uppercase;color:#fff;background:#C61D23;
+    padding:4px 16px;margin-bottom:8px;min-width:300px;text-align:center;}
+
+  .score-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;
+    font-family:'Barlow Condensed',sans-serif;}
+  .score-lbl{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#555;transition:color .3s;}
+  .pips{display:flex;gap:3px;}
+  .pip{width:20px;height:20px;border-radius:3px;border:1px solid #222;background:#111;
+    transition:background .35s,border-color .35s;
+    display:flex;align-items:center;justify-content:center;
+    font-size:9px;font-weight:700;font-family:'Barlow Condensed',sans-serif;color:#333;}
+  .pip.on   {background:#C61D23;border-color:#C61D23;color:#fff;}
+  .pip.split{background:#f0a500;border-color:#f0a500;color:#fff;}
+  .pip.win  {background:#22b56e;border-color:#22b56e;color:#fff;}
+
+  .scene{position:relative;width:490px;height:510px;}
+  .field-bg{position:absolute;inset:0;background:#14481a;
+    background-image:repeating-linear-gradient(180deg,transparent,transparent 51px,
+      rgba(255,255,255,.03) 51px,rgba(255,255,255,.03) 102px);}
+
+  .grid{position:absolute;background:#1a5c1a;
+    border:2px solid rgba(255,255,255,.8);
+    transition:border-color .4s,opacity .5s;}
+  .grid.flash-split{border-color:#f0a500;}
+  .grid.flash-win  {border-color:#22b56e;}
+
+  .grid-lbl{position:absolute;font-family:'Barlow Condensed',sans-serif;
+    font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+    color:#999;}
+
+  .player{position:absolute;width:26px;height:26px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:#fff;
+    border:2px solid rgba(255,255,255,.2);
+    transition:left .72s cubic-bezier(.4,0,.2,1),top .72s cubic-bezier(.4,0,.2,1),opacity .45s;
+    z-index:10;}
+  .player.red {background:#C61D23;box-shadow:0 0 8px rgba(198,29,35,.4);}
+  .player.blue{background:#1a6eb5;box-shadow:0 0 8px rgba(26,110,181,.4);}
+  .player.has-ball{border-color:#fff;border-width:3px;}
+
+  /* Body + head markers (Game Habits) */
+  .plabel{position:relative;z-index:3;}
+  .pbody,.phead{position:absolute;inset:0;pointer-events:none;}
+  .pbody{transform:rotate(var(--bd,0deg));}      /* shoulder line = body facing */
+  .phead{transform:rotate(var(--hd,0deg));}      /* eyes + cone = head facing  */
+  .shoulders{position:absolute;top:50%;left:50%;width:27px;height:4.5px;border-radius:3px;
+    background:#fff;box-shadow:0 0 4px rgba(0,0,0,.6);transform:translate(-50%,-50%);}
+  .chest{position:absolute;top:0;left:50%;transform:translateX(-50%);width:0;height:0;
+    border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid #fff;}
+  .eyes{position:absolute;top:1px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:4;}
+  .eyes i{display:block;width:3.6px;height:3.6px;border-radius:50%;background:#fff;
+    box-shadow:0 0 2px rgba(0,0,0,.8);}
+  .cone{position:absolute;left:50%;bottom:50%;width:88px;height:44px;transform:translateX(-50%);
+    background:linear-gradient(to top,rgba(255,236,110,.92),rgba(255,236,110,.05));
+    filter:drop-shadow(0 0 5px rgba(255,236,110,.65));
+    clip-path:polygon(50% 100%,0 0,100% 0);opacity:0;transition:opacity .3s;}
+  .player.scanning .cone,.player.seeing .cone{opacity:1;}
+  .player.headdown .eyes i{opacity:.25;background:#777;box-shadow:none;height:1.6px;border-radius:1px;} /* head down = eyes lowered, not looking up */
+  .player.scanning .phead{animation:scanSweep 1.6s ease-in-out infinite;}
+  @keyframes scanSweep{0%,100%{transform:rotate(calc(var(--hd,0deg) - 38deg));}
+    50%{transform:rotate(calc(var(--hd,0deg) + 38deg));}}
+
+  .ball{position:absolute;width:14px;height:14px;border-radius:50%;
+    background:#fff;border:1px solid #ccc;z-index:20;
+    transition:left .72s cubic-bezier(.4,0,.2,1),top .72s cubic-bezier(.4,0,.2,1),opacity .45s;
+    box-shadow:0 0 9px rgba(255,255,255,.9);}
+
+  .arr-svg{position:absolute;top:0;left:0;width:490px;height:510px;pointer-events:none;z-index:8;}
+
+  .flash{position:absolute;pointer-events:none;opacity:0;transition:opacity .28s;z-index:6;}
+  .flash.show{opacity:1;}
+
+  .ftxt{position:absolute;pointer-events:none;opacity:0;transition:opacity .28s;z-index:30;
+    font-family:'Barlow Condensed',sans-serif;font-weight:900;letter-spacing:3px;
+    text-transform:uppercase;white-space:nowrap;text-shadow:0 0 14px currentColor;}
+  .ftxt.show{opacity:1;}
+
+  /* Coaching highlight banner — pulses to draw the eye */
+  .hi-txt{left:245px;top:46px;transform:translateX(-50%);
+    font-size:16px;color:#fff;
+    text-shadow:0 1px 4px rgba(0,0,0,.95),0 0 2px rgba(0,0,0,.85);
+    white-space:normal;max-width:300px;text-align:center;line-height:1.3;
+    letter-spacing:1.5px;}
+  .hi-txt.show{animation:hiIntro .85s ease-out 1 both;}
+  @keyframes hiIntro{0%{opacity:0;}30%{opacity:1;}55%{opacity:.2;}100%{opacity:1;}}
+
+  /* Flashing pointer — calls out the head-down player from outside the box */
+  .point-arr{opacity:0;stroke:#ff3b3b;stroke-width:3.2;stroke-linecap:round;}
+  .point-arr.show{animation:ptFlash .6s ease-in-out infinite;}
+  @keyframes ptFlash{0%,100%{opacity:1;}50%{opacity:.12;}}
+
+  /* Guide reference lines — show players are off the same line */
+  .guide{opacity:0;stroke:rgba(120,200,255,.85);stroke-width:1.6;stroke-dasharray:5,4;
+    transition:opacity .4s;}
+  .guide.show{opacity:1;}
+
+  /* Option arrows — flash a few times then sit */
+  .opt-arr{opacity:0;}
+  .opt-arr.show{animation:optFlash 1s ease-out 1 both;}
+  @keyframes optFlash{0%{opacity:0;}15%{opacity:1;}30%{opacity:.15;}45%{opacity:1;}
+    60%{opacity:.2;}75%{opacity:1;}100%{opacity:1;}}
+
+  /* Space highlight zone — white wash over the open space the text describes */
+  .zone{position:absolute;border:2px dashed rgba(255,255,255,.7);border-radius:5px;
+    opacity:0;transition:opacity .45s;z-index:5;pointer-events:none;
+    display:flex;align-items:center;justify-content:center;}
+  .zone.show{opacity:1;animation:zonePulse 1.6s ease-in-out infinite;}
+  @keyframes zonePulse{0%,100%{background:rgba(255,255,255,.06);}50%{background:rgba(255,255,255,.2);}}
+  .zone-lbl{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:12px;
+    letter-spacing:2px;text-transform:uppercase;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9);}
+
+  .legend{display:flex;gap:14px;margin-top:8px;justify-content:center;}
+  .leg{display:flex;align-items:center;gap:5px;font-size:10px;color:#bbb;
+    font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;}
+  .ld{width:12px;height:12px;border-radius:50%;}
+  .ld.red{background:#C61D23;} .ld.blue{background:#1a6eb5;} .ld.gold{background:#f0a500;border-radius:2px;}
+
+  .step-indicators{display:flex;gap:6px;margin-top:9px;}
+  .step-dot{width:7px;height:7px;border-radius:50%;background:#222;transition:background .3s;}
+  .step-dot.active{background:#C61D23;} .step-dot.done{background:#444;}
+
+  .desc{font-size:11px;color:#585858;text-align:center;max-width:440px;
+    margin-top:6px;line-height:1.5;min-height:28px;}
+
+  .controls{display:flex;gap:8px;margin-top:10px;}
+  .btn{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;
+    letter-spacing:1.5px;text-transform:uppercase;padding:7px 16px;border:none;cursor:pointer;transition:all .2s;}
+  .btnp{background:#C61D23;color:#fff;} .btnp:hover{background:#e02228;}
+  .btns{background:transparent;color:#555;border:1px solid #222;} .btns:hover{border-color:#555;color:#bbb;}
+
+  /* TSI Logo */
+  .tsi-logo-wrap{display:flex;justify-content:center;padding:0 0 12px;width:100%;}
+  .tsi-logo{height:38px;width:auto;display:block;}
+</style>
+</head>
+<body>
+
+<div class="tsi-logo-wrap"><img class="tsi-logo" alt="TSI" src="data:image/jpeg;base64,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"></div>
+
+<div class="header">
+  <h1>4v2 Rondo</h1>
+  <p>Game Habit #2: Raise Your Head and Look</p>
+</div>
+
+<div class="phase-label" id="phaseLabel">Setup</div>
+
+<div class="scene">
+  <div class="field-bg"></div>
+
+  <!-- Single centred grid -->
+  <div class="grid" id="gbox" style="left:130px;top:140px;width:230px;height:230px;"></div>
+  <div class="grid-lbl" id="glbl" style="left:130px;top:126px;"></div>
+
+  <!-- Flash overlays -->
+  <div class="flash" id="fSplit"
+    style="left:130px;top:140px;width:230px;height:230px;
+    background:rgba(240,165,0,.13);border:2px solid #f0a500;"></div>
+  <div class="flash" id="fWin"
+    style="left:130px;top:140px;width:230px;height:230px;
+    background:rgba(34,181,110,.1);border:2px solid #22b56e;"></div>
+
+  <!-- Float texts -->
+  <div class="ftxt" id="ftSplit" style="font-size:24px;color:#f0a500;left:178px;top:248px;">SPLIT!</div>
+  <div class="ftxt" id="ftWin"   style="font-size:24px;color:#22b56e;left:158px;top:248px;">8 PASSES!</div>
+
+  <!-- Coaching highlight banner -->
+  <div class="ftxt hi-txt" id="ftHi"></div>
+
+  <!-- Space highlight zone -->
+  <div class="zone" id="zone"><span class="zone-lbl" id="zoneLbl"></span></div>
+
+  <!-- SVG -->
+  <svg class="arr-svg" id="arrSvg" viewBox="0 0 490 510">
+    <defs>
+      <marker id="mW" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="rgba(255,255,255,.75)"/></marker>
+      <marker id="mG" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#f0a500"/></marker>
+      <marker id="mPt" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+        <path d="M0,0 L7,3.5 L0,7 Z" fill="#ff3b3b"/></marker>
+    </defs>
+    <path id="gl1" class="guide" fill="none"/>
+    <path id="gl2" class="guide" fill="none"/>
+    <path id="opt1" class="opt-arr" fill="none" stroke-width="2" stroke-dasharray="6,3"/>
+    <path id="opt2" class="opt-arr" fill="none" stroke-width="2" stroke-dasharray="6,3"/>
+    <path id="opt3" class="opt-arr" fill="none" stroke-width="2" stroke-dasharray="6,3"/>
+    <path id="pointArr" class="point-arr" fill="none" marker-end="url(#mPt)"/>
+  </svg>
+</div>
+
+<div class="legend">
+  <div class="leg"><div class="ld red"></div>Possession</div>
+  <div class="leg"><div class="ld blue"></div>Defenders</div>
+  <div class="leg"><div class="ld gold"></div>Split Pass</div>
+</div>
+
+<div class="step-indicators" id="stepDots"></div>
+<div class="desc" id="desc"></div>
+
+<div class="controls">
+  <button class="btn btns" id="prevBtn" onclick="go(-1)">← Back</button>
+  <button class="btn btnp" id="playBtn" onclick="toggleAuto()">▶ Auto</button>
+  <button class="btn btns" id="nextBtn" onclick="go(1)">Next →</button>
+</div>
+
+<script>
+// ── Geometry ──────────────────────────────────────────────────────────
+// Grid: L130, T140, W230, H230 → centre [245,255]
+// Player div: 26px → top-left = centre - 13 ; Ball div: 14px → centre - 7
+const pp = (cx,cy) => [cx-13, cy-13];
+
+// Ball next to player, offset ~17px toward grid centre
+function bNear(cx,cy, gcx,gcy){
+  const dx=gcx-cx, dy=gcy-cy, len=Math.sqrt(dx*dx+dy*dy)||1, d=17;
+  return [cx+dx/len*d-7, cy+dy/len*d-7];
+}
+// Arrow path between two centres, offset 14px from each end
+function arw(fx,fy,tx,ty){
+  const dx=tx-fx, dy=ty-fy, len=Math.sqrt(dx*dx+dy*dy)||1;
+  const ox=dx/len*14, oy=dy/len*14;
+  return `M${fx+ox},${fy+oy} L${tx-ox},${ty-oy}`;
+}
+const GC=[245,255];
+
+// ── Phase definitions ─────────────────────────────────────────────────
+// pl: [L,T,R,B, D1,D2] each [cx,cy].  passer index 0=L 1=T 2=R 3=B (-1 none)
+// ball = top-left [x,y].  splitP / winP flags.  arrows = list of ids shown.
+const PH = [
+// 0 — Setup  (Habit #2 intro)
+{ label:"Game Habit #2 — Raise Your Head and Look",
+  pl:[[130,255],[245,140],[360,255],[245,370],[215,235],[275,275]],
+  ball: bNear(130,255,...GC), passer:0, score:0,
+  splitP:false, winP:false, arrows:[],
+  open:[1,2,3], scan:[1,2,3],
+  hi:"Game Habit #2: Raise your head and look — scan before you receive to see the whole pitch",
+  desc:"The bright vision cone shows what a player can see when the head is up and scanning. Heads down or ball watching, you are blind to the game. Each pass below contrasts head/eyes down (can't see) with head up and looking." },
+
+// 1 — L → T  (Habit #2: BEFORE T receives — ball with L, pre-pass positions)
+{ label:"Pass 1 — Head Down or Ball Watching (Incorrect)",
+  pl:[[130,255],[245,140],[360,255],[245,370],[215,235],[275,275]],
+  ball: bNear(130,255,...GC), passer:0, score:1,
+  splitP:false, winP:false, arrows:['a1'],
+  open:[1], down:[1], pointAt:{sx:245,sy:95,ex:245,ey:121},
+  hi:"Incorrect — head down or ball watching as the ball comes: reduces options to play",
+  desc:"Before the ball even arrives, Top's eyes are down on it — no scan, no picture. The only ball available is the safe one back to L." },
+
+// 1b — head UP and scanning BEFORE receiving (bright cone)
+{ label:"Pass 1 — Head Up (Correct)",
+  pl:[[130,255],[245,140],[360,255],[245,370],[215,235],[275,275]],
+  ball: bNear(130,255,...GC), passer:0, score:1,
+  splitP:false, winP:false, arrows:['a1'],
+  open:[1], scan:[1],
+  hi:"Correct — head up and scanning before receiving: increases options to play",
+  desc:"As the ball travels, Top checks the shoulders — head up, the bright cone sweeps the pitch, so the options are clear before it even arrives." },
+
+// 2 — T → R  (Habit #2: BEFORE R receives — ball with T, pre-pass positions)
+{ label:"Pass 2 — Head Down or Ball Watching (Incorrect)",
+  pl:[[130,255],[245,140],[360,255],[245,370],[225,190],[258,262]],
+  ball: bNear(245,140,...GC), passer:1, score:2,
+  splitP:false, winP:false, arrows:['a1','a2'],
+  open:[2], down:[2], pointAt:{sx:400,sy:255,ex:376,ey:255},
+  hi:"Incorrect — Right's head is down or ball watching before receiving: reduces options to play",
+  desc:"The ball is on its way but Right is ball-watching, head down — the only outcome is giving it straight back to Top." },
+
+// 2b — head UP and scanning BEFORE receiving (bright cone)
+{ label:"Pass 2 — Head Up (Correct)",
+  pl:[[130,255],[245,140],[360,255],[245,370],[225,190],[258,262]],
+  ball: bNear(245,140,...GC), passer:1, score:2,
+  splitP:false, winP:false, arrows:['a1','a2'],
+  open:[2], scan:[2],
+  hi:"Correct — Right scans before the ball arrives: increases options to play",
+  desc:"Head up before receiving, Right's cone sweeps the grid — Top, Bottom and the switch to Left are all already seen." },
+
+// 3 — R → B  (Habit #2: BEFORE B receives — ball with R, pre-pass positions)
+{ label:"Pass 3 — Head Down or Ball Watching (Incorrect)",
+  pl:[[135,260],[312,148],[360,240],[300,370],[262,196],[305,252]],
+  ball: bNear(360,240,...GC), passer:2, score:3,
+  splitP:false, winP:false, arrows:['a1','a2','a3'],
+  open:[3], down:[3], pointAt:{sx:300,sy:410,ex:300,ey:386},
+  hi:"Incorrect — Bottom's head is down or ball watching before receiving: reduces options to play",
+  desc:"As the ball travels Bottom keeps the eyes down — no picture, just a return pass to Right." },
+
+// 3b — head UP and scanning BEFORE receiving (bright cone)
+{ label:"Pass 3 — Head Up (Correct)",
+  pl:[[135,260],[312,148],[360,240],[300,370],[262,196],[305,252]],
+  ball: bNear(360,240,...GC), passer:2, score:3,
+  splitP:false, winP:false, arrows:['a1','a2','a3'],
+  open:[3], scan:[3],
+  hi:"Correct — Bottom scans before the ball arrives: increases options to play",
+  desc:"Head up early, Bottom's cone sweeps the pitch — Left, Right and the forward ball are already in view." },
+
+// 4 — B → L  (Habit #2: BEFORE L receives — ball with B, pre-pass positions)
+{ label:"Pass 4 — Head Down or Ball Watching (Incorrect)",
+  pl:[[130,295],[240,145],[360,320],[255,370],[300,288],[268,256]],
+  ball: bNear(255,370,...GC), passer:3, score:4,
+  splitP:false, winP:false, arrows:['a1','a2','a3','a4'],
+  open:[0], down:[0], pointAt:{sx:90,sy:295,ex:114,ey:295},
+  hi:"Incorrect — Left's head is down or ball watching before receiving: reduces options to play",
+  desc:"Left's head is down or ball watching as the ball comes from Bottom — no picture forms, and it gets played tamely back." },
+
+// 4b — head UP and scanning BEFORE receiving (bright cone)
+{ label:"Pass 4 — Head Up (Correct)",
+  pl:[[130,295],[240,145],[360,320],[255,370],[300,288],[268,256]],
+  ball: bNear(255,370,...GC), passer:3, score:4,
+  splitP:false, winP:false, arrows:['a1','a2','a3','a4'],
+  open:[0], scan:[0],
+  hi:"Correct — Left scans before the ball arrives: increases options to play",
+  desc:"Looking up before receiving, Left already has a picture of the grid and the options as the ball arrives." },
+
+// 5 — L → R SPLIT  (Habit #2: BEFORE the split arrives — ball with L, defenders disconnected)
+{ label:"Pass 5 — Head Up (Correct)",
+  pl:[[130,245],[245,140],[360,250],[165,368],[210,300],[230,210]],
+  ball: bNear(130,245,...GC), passer:0, score:5,
+  splitP:false, winP:false, arrows:['a1','a2','a3','a4','a5'],
+  open:[2], scan:[2],
+  hi:"Correct — Right's head is up before the split arrives: increases options to play",
+  desc:"You can only take a line-breaking split if you have looked first — head up, Right has already seen the disconnected defenders and is ready as the ball comes." },
+
+// 6 — R → T  (Habit #2: BEFORE T receives — ball with R, pre-pass positions)
+{ label:"Pass 6 — Head Down or Ball Watching (Incorrect)",
+  pl:[[130,250],[315,143],[360,260],[300,368],[228,247],[270,256]],
+  ball: bNear(360,260,...GC), passer:2, score:6,
+  splitP:false, winP:false, arrows:['a1','a2','a3','a4','a5','a6'],
+  open:[1], down:[1], pointAt:{sx:315,sy:98,ex:315,ey:124},
+  hi:"Incorrect — Top's head is down or ball watching before receiving: reduces options to play",
+  desc:"Ball on its way, Top is watching it, head down — the only outcome is giving it back to Right." },
+
+// 6b — head UP and scanning BEFORE receiving (bright cone)
+{ label:"Pass 6 — Head Up (Correct)",
+  pl:[[130,250],[315,143],[360,260],[300,368],[228,247],[270,256]],
+  ball: bNear(360,260,...GC), passer:2, score:6,
+  splitP:false, winP:false, arrows:['a1','a2','a3','a4','a5','a6'],
+  open:[1], scan:[1],
+  hi:"Correct — Top scans before the ball arrives: increases options to play",
+  desc:"Head up early, Top's cone sweeps the pitch — Left, Right or forward are all in view before receiving." },
+
+// 7 — T → B SPLIT  (Habit #2: BEFORE the split arrives — ball with T, pre-pass positions)
+{ label:"Pass 7 — Head Up (Correct)",
+  pl:[[130,200],[235,148],[360,185],[245,368],[205,172],[320,248]],
+  ball: bNear(235,148,...GC), passer:1, score:7,
+  splitP:false, winP:false, arrows:['a1','a2','a3','a4','a5','a6','a7'],
+  open:[3], scan:[3],
+  hi:"Correct — Bottom's head is up before the split arrives: increases options to play",
+  desc:"A split is only on if the head is up first — Bottom looks early and is ready as the ball comes." },
+
+// 8 — B → L  (Habit #2: BEFORE L receives — ball with B, pre-pass positions)
+{ label:"Pass 8 — Head Down or Ball Watching (Incorrect)",
+  pl:[[130,315],[240,145],[360,330],[250,365],[232,250],[262,256]],
+  ball: bNear(250,365,...GC), passer:3, score:8,
+  splitP:false, winP:false, arrows:['a1','a2','a3','a4','a5','a6','a7','a8'],
+  open:[0], down:[0], pointAt:{sx:90,sy:315,ex:114,ey:315},
+  hi:"Incorrect — Left's head is down or ball watching before receiving: reduces options to play",
+  desc:"One more time, head down or ball watching as the ball comes means no picture — a single tame option back to Bottom." },
+
+// 8b — head UP and scanning BEFORE receiving (bright cone)
+{ label:"Pass 8 — Head Up (Correct)",
+  pl:[[130,315],[240,145],[360,330],[250,365],[232,250],[262,256]],
+  ball: bNear(250,365,...GC), passer:3, score:8,
+  splitP:false, winP:false, arrows:['a1','a2','a3','a4','a5','a6','a7','a8'],
+  open:[0], scan:[0],
+  hi:"Correct — Left scans before the ball arrives: increases options to play",
+  desc:"Every time, head up and looking before receiving keeps the whole pitch in view and the options alive — that is Game Habit #2." },
+
+// 8c — closing: L receives from B, head up, on the half-turn
+{ label:"Received — Head Up",
+  pl:[[130,315],[165,145],[360,300],[195,368],[215,290],[210,255]],
+  ball: bNear(130,315,...GC), passer:0, score:8,
+  splitP:false, winP:false, arrows:['a1','a2','a3','a4','a5','a6','a7','a8'],
+  open:[0], scan:[0],
+  hi:"Because the look came first, Left receives head up and on the half-turn — options alive. That is Game Habit #2",
+  desc:"The ball arrives from Bottom and Left takes it with the head already up and the body open — ready to play forward, the whole pitch in front." }
+];
+
+// ── Create players ─────────────────────────────────────────────────────
+const scene = document.querySelector('.scene');
+const els = { r:[], b:[], ball:null };
+function mkP(t,lbl){
+  const e=document.createElement('div'); e.className=`player ${t}`;
+  e.innerHTML = `<span class="plabel">${lbl}</span>` + (t==='red'
+    ? `<div class="pbody"><span class="shoulders"></span><span class="chest"></span></div>
+       <div class="phead"><span class="cone"></span><span class="eyes"><i></i><i></i></span></div>`
+    : '');
+  scene.appendChild(e); return e;
+}
+['L','T','R','B'].forEach(n=>els.r.push(mkP('red',n)));
+[1,2].forEach(n=>els.b.push(mkP('blue',n)));
+els.ball=document.createElement('div'); els.ball.className='ball'; scene.appendChild(els.ball);
+
+// ── Apply phase ────────────────────────────────────────────────────────
+let current=0, isAuto=false, timer=null;
+
+function applyPhase(idx){
+  const ph=PH[idx];
+  const g=ph.pl;
+  const bc=[ph.ball[0]+6.5, ph.ball[1]+6.5];   // ball centre
+  els.r.forEach((el,i)=>{
+    el.style.left=pp(g[i][0],g[i][1])[0]+'px';
+    el.style.top =pp(g[i][0],g[i][1])[1]+'px';
+    el.classList.toggle('has-ball', ph.passer===i);
+    // Facing: body + head point at a target. Default = ball; `open` = grid centre (sideways to the
+    // line, chest into the field); `face:{i:[x,y]}` = explicit target. Shoulders sit perpendicular.
+    let tgt = bc;
+    if(ph.open && ph.open.includes(i)) tgt=[GC[0],GC[1]];
+    if(ph.face && ph.face[i]) tgt=ph.face[i];
+    const ang = Math.atan2(tgt[0]-g[i][0], -(tgt[1]-g[i][1]))*180/Math.PI;
+    el.style.setProperty('--bd', ang+'deg');
+    el.style.setProperty('--hd', ang+'deg');
+    el.classList.toggle('scanning', !!(ph.scan && ph.scan.includes(i)));
+    el.classList.toggle('seeing', !!(ph.cone && ph.cone.includes(i)));
+    el.classList.toggle('headdown', !!(ph.down && ph.down.includes(i)));
+  });
+  els.b.forEach((el,i)=>{
+    el.style.left=pp(g[4+i][0],g[4+i][1])[0]+'px';
+    el.style.top =pp(g[4+i][0],g[4+i][1])[1]+'px';
+  });
+  els.ball.style.left=ph.ball[0]+'px'; els.ball.style.top=ph.ball[1]+'px';
+
+  // Grid border + flashes
+  const gbox=document.getElementById('gbox');
+  gbox.className='grid'+(ph.splitP?' flash-split':ph.winP?' flash-win':'');
+  document.getElementById('fSplit').classList.toggle('show',ph.splitP);
+  document.getElementById('fWin').classList.toggle('show',ph.winP);
+  document.getElementById('ftSplit').classList.toggle('show',ph.splitP);
+  document.getElementById('ftWin').classList.toggle('show',ph.winP);
+
+  // Coaching highlight banner — flash once, then sit
+  const ftHi=document.getElementById('ftHi');
+  ftHi.classList.remove('show');
+  if(ph.hi){ ftHi.textContent=ph.hi; void ftHi.offsetWidth; ftHi.classList.add('show'); }
+  else ftHi.textContent='';
+
+  // Option arrows — data-driven: ph.optArrows = [{f:[x,y], t:[x,y], c:'w'|'g'}, ...]
+  ['opt1','opt2','opt3'].forEach((id,i)=>{
+    const e=document.getElementById(id);
+    const spec=ph.optArrows && ph.optArrows[i];
+    e.classList.remove('show');
+    if(spec){
+      e.setAttribute('d', arw(spec.f[0],spec.f[1],spec.t[0],spec.t[1]));
+      const gold = spec.c==='g';
+      e.setAttribute('stroke', gold?'#f0a500':'rgba(255,255,255,.95)');
+      e.setAttribute('marker-end', gold?'url(#mG)':'url(#mW)');
+      void e.getBoundingClientRect(); e.classList.add('show');
+    }
+  });
+
+  // Guide reference lines — ph.guides = {a:y1, b:y2} across the grid
+  ['gl1','gl2'].forEach((id,i)=>{
+    const e=document.getElementById(id);
+    const y=ph.guides && (i===0?ph.guides.a:ph.guides.b);
+    if(y!=null){ e.setAttribute('d',`M130,${y} L360,${y}`); e.classList.add('show'); }
+    else e.classList.remove('show');
+  });
+
+  // Flashing pointer — ph.pointAt = {sx,sy,ex,ey} (outside the box → at the player)
+  const pa=document.getElementById('pointArr');
+  if(ph.pointAt){
+    pa.setAttribute('d',`M${ph.pointAt.sx},${ph.pointAt.sy} L${ph.pointAt.ex},${ph.pointAt.ey}`);
+    pa.classList.add('show');
+  } else pa.classList.remove('show');
+
+  // Space highlight zone
+  const zone=document.getElementById('zone');
+  if(ph.zone){
+    zone.style.left=ph.zone.l+'px'; zone.style.top=ph.zone.t+'px';
+    zone.style.width=ph.zone.w+'px'; zone.style.height=ph.zone.h+'px';
+    document.getElementById('zoneLbl').textContent=ph.zone.label||'';
+    zone.classList.add('show');
+  } else zone.classList.remove('show');
+
+  // UI
+  document.getElementById('phaseLabel').textContent=ph.label;
+  document.getElementById('desc').textContent=ph.desc;
+  document.querySelectorAll('.step-dot').forEach((d,i)=>{
+    d.classList.toggle('active',i===idx);
+    d.classList.toggle('done',i<idx);
+  });
+  document.getElementById('prevBtn').style.opacity=idx===0?'0.3':'1';
+  document.getElementById('nextBtn').style.opacity=idx===PH.length-1?'0.3':'1';
+}
+
+function go(dir){
+  const n=Math.max(0,Math.min(PH.length-1,current+dir));
+  if(n!==current){current=n;applyPhase(current);}
+  if(current===PH.length-1&&isAuto) stopAuto();
+}
+function toggleAuto(){
+  if(isAuto){stopAuto();return;}
+  isAuto=true; document.getElementById('playBtn').textContent='⏸ Pause';
+  if(current===PH.length-1){current=0;applyPhase(0);}
+  timer=setInterval(()=>{
+    if(current<PH.length-1){current++;applyPhase(current);}
+    else stopAuto();
+  },4500);
+}
+function stopAuto(){
+  isAuto=false;clearInterval(timer);
+  document.getElementById('playBtn').textContent='▶ Auto';
+}
+
+// Init
+PH.forEach((_,i)=>{ const d=document.createElement('div'); d.className='step-dot'; document.getElementById('stepDots').appendChild(d); });
+applyPhase(0);
+</script>
+</body>
+</html>
